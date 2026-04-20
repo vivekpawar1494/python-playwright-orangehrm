@@ -72,20 +72,60 @@ jobs:
         run: mkdir -p reports/html/assets reports/screenshots runners/reports
 
       # ── 7. Run tests ──────────────────────────────────────────────────────────
-      # headless=true is enforced by the QA env setting for CI
-      # environments.json QA has headless: false — override via ENV var
       - name: Run tests
+        id: run_tests
         env:
           ENV: ${{ github.event.inputs.environment || 'QA' }}
+          HEADLESS: "true"
         run: |
           python -m pytest tests/ \
             --html=reports/html/report.html \
             --self-contained-html \
             -v
-        # Don't fail here — let artifact upload steps always run
+        # Don't fail here — let artifact upload and email steps always run
         continue-on-error: true
 
-      # ── 8. Upload HTML report ─────────────────────────────────────────────────
+      # ── 8. Parse test results for email subject ───────────────────────────────
+      - name: Parse test results
+        if: always()
+        id: results
+        run: |
+          python - << 'PYEOF'
+          import re, os
+
+          with open("reports/html/report.html", "r") as f:
+              content = f.read()
+
+          passed  = re.search(r"(\d+) passed",  content)
+          failed  = re.search(r"(\d+) failed",  content)
+          skipped = re.search(r"(\d+) skipped", content)
+
+          p = int(passed.group(1))  if passed  else 0
+          f = int(failed.group(1))  if failed  else 0
+          s = int(skipped.group(1)) if skipped else 0
+
+          status = "FAILED" if f > 0 else "PASSED"
+          summary = f"{p} passed, {f} failed, {s} skipped"
+
+          # Write to GITHUB_OUTPUT so later steps can read these values
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"status={status}\n")
+              out.write(f"summary={summary}\n")
+          PYEOF
+
+      # ── 9. Zip screenshots for email attachment ──────────────────────────────
+      - name: Zip screenshots
+        if: always()
+        run: |
+          cd reports
+          if [ "$(ls -A screenshots)" ]; then
+            zip -r screenshots.zip screenshots/
+          else
+            echo "No screenshots found, creating empty zip"
+            zip -r screenshots.zip screenshots/
+          fi
+
+      # ── 10. Upload HTML report as GitHub artifact ─────────────────────────────
       - name: Upload HTML report
         if: always()
         uses: actions/upload-artifact@v4
@@ -94,7 +134,7 @@ jobs:
           path: reports/html/
           retention-days: 14
 
-      # ── 9. Upload screenshots ─────────────────────────────────────────────────
+      # ── 11. Upload screenshots as GitHub artifact ─────────────────────────────
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -103,18 +143,54 @@ jobs:
           path: reports/screenshots/
           retention-days: 14
 
-      # ── 10. Fail the job if tests failed (after artifacts are safely uploaded) ─
+      # ── 12. Send email with report and screenshots ────────────────────────────
+      - name: Send email report
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          to: ${{ secrets.EMAIL_RECIPIENTS }}
+          from: GitHub Actions <${{ secrets.EMAIL_USERNAME }}>
+          subject: >
+            [${{ steps.results.outputs.status }}] OrangeHRM Tests —
+            ${{ steps.results.outputs.summary }} —
+            ${{ github.event.inputs.environment || 'QA' }} —
+            Run #${{ github.run_number }}
+          body: |
+            OrangeHRM Playwright Test Run Summary
+            ======================================
+
+            Status      : ${{ steps.results.outputs.status }}
+            Results     : ${{ steps.results.outputs.summary }}
+            Environment : ${{ github.event.inputs.environment || 'QA' }}
+            Branch      : ${{ github.ref_name }}
+            Triggered by: ${{ github.event_name }}
+            Run number  : #${{ github.run_number }}
+            Workflow    : ${{ github.workflow }}
+
+            View full run:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Attachments
+            -----------
+            - report.html   → full HTML test report (self-contained)
+            - screenshots.zip → all test screenshots (PASS + FAIL)
+
+            This email was sent automatically by GitHub Actions.
+          attachments: >
+            reports/html/report.html,
+            reports/screenshots.zip
+
+      # ── 13. Fail the job if tests failed (after email is sent) ───────────────
       - name: Assert test results
         if: always()
         run: |
-          # Re-check exit code from the test step by looking at the report
-          python -c "
-          import re, sys
-          with open('reports/html/report.html', 'r') as f:
-              content = f.read()
-          failed = re.search(r'(\d+) failed', content)
-          if failed and int(failed.group(1)) > 0:
-              print(f'{failed.group(1)} test(s) failed — marking job as failed')
-              sys.exit(1)
-          print('All tests passed')
-          " 
+          if [ "${{ steps.results.outputs.status }}" = "FAILED" ]; then
+            echo "Tests failed — marking job as failed"
+            exit 1
+          fi
+          echo "All tests passed"
