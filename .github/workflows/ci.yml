@@ -1,0 +1,120 @@
+name: OrangeHRM Playwright Tests
+
+on:
+  # Trigger when a PR is merged into main
+  push:
+    branches:
+      - main
+
+  # Trigger when a PR is raised against main (merged only — handled by the job condition below)
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+  # Nightly run at midnight UTC
+  schedule:
+    - cron: "0 0 * * *"
+
+  # Manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to run tests against"
+        required: true
+        default: "QA"
+        type: choice
+        options:
+          - QA
+          - UAT
+
+jobs:
+  test:
+    name: Run Playwright Tests (${{ github.event.inputs.environment || 'QA' }})
+    runs-on: ubuntu-latest
+
+    # For pull_request trigger — only run when PR is actually merged, not just closed
+    if: >
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.merged == true
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Python setup ───────────────────────────────────────────────────────
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── 3. Cache pip to speed up subsequent runs ──────────────────────────────
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ── 4. Install Python packages ────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 5. Install Playwright browser ─────────────────────────────────────────
+      - name: Install Playwright Chromium
+        run: playwright install chromium --with-deps
+
+      # ── 6. Create report directories ─────────────────────────────────────────
+      - name: Create report directories
+        run: mkdir -p reports/html/assets reports/screenshots runners/reports
+
+      # ── 7. Run tests ──────────────────────────────────────────────────────────
+      # headless=true is enforced by the QA env setting for CI
+      # environments.json QA has headless: false — override via ENV var
+      - name: Run tests
+        env:
+          ENV: ${{ github.event.inputs.environment || 'QA' }}
+        run: |
+          python -m pytest tests/ \
+            --html=reports/html/report.html \
+            --self-contained-html \
+            -v
+        # Don't fail here — let artifact upload steps always run
+        continue-on-error: true
+
+      # ── 8. Upload HTML report ─────────────────────────────────────────────────
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-html-report
+          path: reports/html/
+          retention-days: 14
+
+      # ── 9. Upload screenshots ─────────────────────────────────────────────────
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: reports/screenshots/
+          retention-days: 14
+
+      # ── 10. Fail the job if tests failed (after artifacts are safely uploaded) ─
+      - name: Assert test results
+        if: always()
+        run: |
+          # Re-check exit code from the test step by looking at the report
+          python -c "
+          import re, sys
+          with open('reports/html/report.html', 'r') as f:
+              content = f.read()
+          failed = re.search(r'(\d+) failed', content)
+          if failed and int(failed.group(1)) > 0:
+              print(f'{failed.group(1)} test(s) failed — marking job as failed')
+              sys.exit(1)
+          print('All tests passed')
+          " 

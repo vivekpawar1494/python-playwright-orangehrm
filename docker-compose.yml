@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orangehrm_playwright_tests
+    environment:
+      - ENV=QA
+    volumes:
+      # Mount reports back to host so they persist after container exits
+      - ./reports:/app/reports
+    command: >
+      python -m pytest tests/
+      --html=reports/html/report.html
+      --self-contained-html
+      -v

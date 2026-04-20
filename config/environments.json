@@ -1,0 +1,15 @@
+
+{
+  "QA": {
+    "base_url": "https://opensource-demo.orangehrmlive.com/web/index.php/auth/login",
+    "browser": "chromium",
+    "headless": false,
+    "timeout": 5000
+  },
+  "UAT": {
+    "base_url": "https://opensource-demo.orangehrmlive.com/web/index.php/auth/login",
+    "browser": "chromium",
+    "headless": true,
+    "timeout": 50000
+  }
+}

@@ -1,0 +1,31 @@
+# ─── Version control ──────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ─── Virtual environment (never copy into image) ──────────────────────────────
+.venv/
+venv/
+env/
+
+# ─── IDE & editor files ───────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+
+# ─── Python cache ─────────────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+**/.pytest_cache/
+
+# ─── Generated reports & screenshots (built fresh in container) ───────────────
+reports/screenshots/
+reports/html/
+reports/*.log
+runners/reports/
+
+# ─── OS files ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

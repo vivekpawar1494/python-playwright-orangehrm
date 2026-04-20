@@ -1,0 +1,111 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+*.manifest
+*.spec
+
+# ─── Virtual environments ─────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.pixi/
+__pypackages__/
+
+# ─── Distribution / packaging ─────────────────────────────────────────────────
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.Python
+
+# ─── Testing & coverage ───────────────────────────────────────────────────────
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+cover/
+
+# ─── Test reports & artefacts (generated at runtime, not source) ──────────────
+reports/screenshots/
+reports/html/
+reports/*.log
+runners/reports/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# ─── IDE / editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.spyderproject
+.spyproject
+.ropeproject
+.cursorignore
+.cursorindexingignore
+
+# ─── Type checkers & linters ──────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+cython_debug/
+
+# ─── Misc tools ───────────────────────────────────────────────────────────────
+.pdm-python
+.pdm-build/
+.abstra/
+.pypirc
+pip-log.txt
+pip-delete-this-directory.txt
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+instance/
+.webassets-cache
+.scrapy
+docs/_build/
+.pybuilder/
+target/
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+/site
+celerybeat-schedule
+celerybeat.pid
+*.sage.py
+*.mo
+*.pot
+__marimo__/
+
+# ─── OS generated ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
