@@ -3,7 +3,7 @@
   "QA": {
     "base_url": "https://opensource-demo.orangehrmlive.com/web/index.php/auth/login",
     "browser": "chromium",
-    "headless": false,
+    "headless": true,
     "timeout": 5000
   },
   "UAT": {
