@@ -90,24 +90,27 @@ jobs:
         if: always()
         id: results
         run: |
-          python - << 'PYEOF'
+          python3 - << 'PYEOF'
           import re, os
 
           with open("reports/html/report.html", "r") as f:
               content = f.read()
 
-          passed  = re.search(r"(\d+) passed",  content)
-          failed  = re.search(r"(\d+) failed",  content)
-          skipped = re.search(r"(\d+) skipped", content)
+          # pytest-html v4 format: <span class="passed">2 Passed,</span>
+          # Number comes BEFORE the capitalised word
+          passed  = re.search(r'<span class="passed">\s*(\d+)\s*Passed',  content)
+          failed  = re.search(r'<span class="failed">\s*(\d+)\s*Failed',  content)
+          skipped = re.search(r'<span class="skipped">\s*(\d+)\s*Skipped', content)
 
           p = int(passed.group(1))  if passed  else 0
           f = int(failed.group(1))  if failed  else 0
           s = int(skipped.group(1)) if skipped else 0
 
-          status = "FAILED" if f > 0 else "PASSED"
+          status  = "FAILED" if f > 0 else "PASSED"
           summary = f"{p} passed, {f} failed, {s} skipped"
 
-          # Write to GITHUB_OUTPUT so later steps can read these values
+          print(f"Parsed results: {summary} -> {status}")
+
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"status={status}\n")
               out.write(f"summary={summary}\n")
